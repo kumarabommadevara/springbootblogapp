@@ -16,6 +16,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -26,15 +28,30 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
-public class UserServiceImpl implements UserService{
+public class UserServiceImpl implements UserService {
+    @Autowired
+    static ModelMapper modelMapper = new ModelMapper();
     @Autowired
     UserRepository userRepository;
     @Autowired
     RoleRepository roleRepository;
+
     @Autowired
-    static ModelMapper modelMapper = new ModelMapper();
-@Autowired
     PasswordEncoder encoder;
+
+
+    private static User convertToEntity(UserDto userDto) {
+
+        return modelMapper.map(userDto, User.class);
+
+    }
+
+    private static UserDto convertToDto(User user) {
+        return modelMapper.map(user, UserDto.class);
+
+    }
+
+
     @Override
     public UserDto createUser(SignupRequest signupRequest) {
         if (userRepository.existsByEmail(signupRequest.getEmail())) {
@@ -42,40 +59,32 @@ public class UserServiceImpl implements UserService{
             throw new RuntimeException("Email already in use");
         } else {
 
-            Set<String> strRoles = signupRequest.getRole();
+            Set<String> strRoles = signupRequest.getRoles();
             List<Role> roles = new ArrayList<>();
 
             if (strRoles == null) {
                 Role userRole = roleRepository.findByRoleName(ERole.ROLE_USER)
                         .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
                 roles.add(userRole);
-            }
-            else {
+            } else {
                 strRoles.forEach(role -> {
-                    switch (role) {
-                        case "admin" -> {
-                            Role adminRole = roleRepository.findByRoleName(ERole.ROLE_ADMIN)
-                                    .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
-                            roles.add(adminRole);
-                        }
-                        case "mod" -> {
-                            Role modRole = roleRepository.findByRoleName(ERole.ROLE_MODERATOR)
-                                    .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
-                            roles.add(modRole);
-                        }
-                        default -> {
-                            Role userRole = roleRepository.findByRoleName(ERole.ROLE_USER)
-                                    .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
-                            roles.add(userRole);
-                        }
+                    if ("admin".equals(role)) {
+                        Role adminRole = roleRepository.findByRoleName(ERole.ROLE_ADMIN)
+                                .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+                        roles.add(adminRole);
+                    }
+                    if ("user".equals(role)) {
+
+                        Role userRole = roleRepository.findByRoleName(ERole.ROLE_USER)
+                                .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+                        roles.add(userRole);
                     }
                 });
             }
-            User user=new User(signupRequest.getUsername(),signupRequest.getEmail(),
-                    encoder.encode(signupRequest.getPassword()));
-
+            User user = new User(signupRequest.getUsername(), signupRequest.getEmail(),
+                    encoder.encode(signupRequest.getPassword()), signupRequest.getAbout());
+            user.setAbout(signupRequest.getAbout());
             user.setRole(roles);
-
 
             final User save = this.userRepository.save(user);
 
@@ -140,14 +149,10 @@ public class UserServiceImpl implements UserService{
         return userResponse;
     }
 
-    private static User convertToEntity(UserDto userDto) {
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
 
-        return modelMapper.map(userDto, User.class);
-
-    }
-
-    private static UserDto convertToDto(User user) {
-        return modelMapper.map(user, UserDto.class);
-
+        return this.userRepository.findByName(username)
+                ;
     }
 }
