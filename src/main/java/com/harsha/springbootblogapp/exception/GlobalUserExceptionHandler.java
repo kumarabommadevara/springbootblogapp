@@ -13,7 +13,6 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -39,21 +38,17 @@ public class GlobalUserExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntityBuilder.build(err);
     }
 
-    @ExceptionHandler(ExpiredJwtException.class)
-    public ResponseEntity<Object> expiredJwtToken(ExpiredJwtException ex, WebRequest request) {
-
-        List<String> details = new ArrayList<String>();
-        details = Collections.singletonList(ex.getMessage());
-
+    @ExceptionHandler(value = ResourceNotFoundException.class)
+    public ResponseEntity<Object> handleResourseNotFound(ResourceNotFoundException ex) {
+        
 
         ApiError err = new ApiError(LocalDateTime.now(),
                 HttpStatus.BAD_REQUEST,
-                "Jwt expired",
-                details);
+                "No User Id found",
+                null);
 
         return ResponseEntityBuilder.build(err);
     }
-
 
 }
 
